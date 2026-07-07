@@ -17,7 +17,7 @@ $LogDir    = "$InstallDir\logs"
 $HostsFile = "$env:SystemRoot\System32\drivers\etc\hosts"
 $TaskName  = "AmazonHostsUpdater"
 $SelfPath  = "$InstallDir\Install.ps1"
-$RemoteSelfUrl = "https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main/Install.ps1"
+$RemoteSelfUrl = "https://gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main/Install.ps1"
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
@@ -126,7 +126,7 @@ Write-Host ""
 
 # 下载远程 Install.ps1
 $RemoteSelfTemp = "$InstallDir\Install_remote.ps1"
-Invoke-WebRequest -Uri $RemoteSelfUrl -OutFile $RemoteSelfTemp -UseBasicParsing
+Invoke-WebRequest -Uri $ -OutFile $RemoteSelfTemp -UseBasicParsing
 
 # 比对本地与远程 Install.ps1
 $LocalContent  = Get-Content $SelfPath -ErrorAction SilentlyContinue
