@@ -5,6 +5,9 @@
 # 自动更新自身（无需 version.txt）
 # ================================
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+
 param(
     [switch]$AutoUpdate
 )
