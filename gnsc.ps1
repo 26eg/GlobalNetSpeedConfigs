@@ -4,7 +4,7 @@
 param([switch]$Worker) 
  
 # ===== 全局配置 ===== 
-$ScriptVersion = '1.0.3' 
+$ScriptVersion = '1.0.4' 
 $AppName    = 'GlobalNetSpeedConfigs' 
 # 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快） 
 $Mirrors = @( 
@@ -47,19 +47,23 @@ function Backup-Hosts { param($content)
     Write-Log "首次修改前已备份原始 hosts -> $bak" 
   } catch { Write-Log ('备份 hosts 失败：' + $_.Exception.Message) } 
 } 
-# 安全写入 hosts：先写临时文件，再原子替换；被锁定则重试；失败绝不清空原文件（杜绝 0KB） 
+# 安全写入 hosts：先写临时文件，再原子替换；被占用则重试；失败绝不清空原文件（杜绝 0KB） 
 function Set-HostsContent { param($text) 
   New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null 
-  $tmp = Join-Path $InstallDir 'hosts.new.tmp' 
+  $tmp  = Join-Path $InstallDir 'hosts.new.tmp' 
+  $rbak = Join-Path $InstallDir 'hosts.replace.bak'   # Replace 需真实备份路径，切勿传 $null 
   [System.IO.File]::WriteAllText($tmp, $text, $Utf8NoBom) 
   for ($i=1; $i -le 6; $i++) { 
     try { 
-      if (Test-Path $HostsPath) { [System.IO.File]::Replace($tmp, $HostsPath, $null) } 
+      if (Test-Path $HostsPath) { 
+        try { (Get-Item $HostsPath -Force).Attributes = 'Normal' } catch {}   # 清只读/系统/隐藏，避免替换失败 
+        [System.IO.File]::Replace($tmp, $HostsPath, $rbak)                    # 原子替换（第三参传真实路径，规避"路径的形式不合法"） 
+      } 
       else { [System.IO.File]::Move($tmp, $HostsPath) } 
       ipconfig /flushdns | Out-Null 
       return $true 
     } catch { 
-      Write-Log ("写 hosts 第 {0}/6 次失败（可能被安全软件锁定）：{1}" -f $i,$_.Exception.Message) 
+      Write-Log ("写 hosts 第 {0}/6 次失败：[{1}] {2}" -f $i,$_.Exception.GetType().Name,$_.Exception.Message) 
       Start-Sleep -Milliseconds 800 
     } 
   } 
@@ -179,7 +183,7 @@ function Uninstall-App {
 # ===== 主流程 ===== 
 Write-Host ('==== {0}  安装向导  v{1} ====' -f $AppName,$ScriptVersion) -ForegroundColor Cyan 
 if (-not (Test-Installed)) { 
-  Write-Host '状态：未安装。   [回车] 立即安装   [其它键] 退出' 
+  Write-Host '状态：未安装。   [回车] 立即安装    [其它键] 退出' 
   if ((Read-One).VirtualKeyCode -eq 13) { Install-App -RunNow } 
 } 
 else { 
@@ -195,4 +199,4 @@ else {
     default { } 
   } 
 } 
-Pause-Exit 
+Pause-Exit
