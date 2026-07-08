@@ -4,9 +4,9 @@
 param([switch]$Worker) 
  
 # ===== 全局配置 ===== 
-$ScriptVersion = '1.0.2' 
+$ScriptVersion = '1.0.3' 
 $AppName    = 'GlobalNetSpeedConfigs' 
-# 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快，可自行调整顺序） 
+# 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快） 
 $Mirrors = @( 
   'https://gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main', 
   'https://gnsc.aioz.cc', 
@@ -24,10 +24,10 @@ $BeginMark  = "# >>> $Tag BEGIN >>>"
 $EndMark    = "# <<< $Tag END <<<" 
 $MaxAgeDays = 14 
 $Business   = 'Amazon' 
+$Utf8NoBom  = New-Object System.Text.UTF8Encoding($false)   # hosts 用无 BOM，避免中文注释乱码 
  
 function Write-Log { param($m) try { Add-Content $LogPath ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$m) -Encoding UTF8 } catch {} } 
 function Pause-Exit { Write-Host ''; Write-Host '按回车键关闭本窗口...' -ForegroundColor DarkGray; [void][Console]::ReadLine(); exit } 
-# 多镜像取文本：任一镜像成功即返回内容，全部失败返回 $null 
 function Get-Remote { param($rel) 
   foreach ($b in $Mirrors) { 
     try { return (Invoke-WebRequest -UseBasicParsing "$b/$rel" -TimeoutSec 15).Content } 
@@ -35,59 +35,87 @@ function Get-Remote { param($rel)
   } 
   return $null 
 } 
+# 首次修改前备份原始 hosts（带时间戳 .bak，同时在安装目录留一份） 
+function Backup-Hosts { param($content) 
+  try { 
+    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss' 
+    $bak = "$HostsPath.$stamp.bak" 
+    if ($content) { [System.IO.File]::WriteAllText($bak, $content, $Utf8NoBom) } 
+    elseif (Test-Path $HostsPath) { Copy-Item $HostsPath $bak -Force } 
+    New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null 
+    Copy-Item $bak (Join-Path $InstallDir "hosts.$stamp.bak") -Force -ErrorAction SilentlyContinue 
+    Write-Log "首次修改前已备份原始 hosts -> $bak" 
+  } catch { Write-Log ('备份 hosts 失败：' + $_.Exception.Message) } 
+} 
+# 安全写入 hosts：先写临时文件，再原子替换；被锁定则重试；失败绝不清空原文件（杜绝 0KB） 
+function Set-HostsContent { param($text) 
+  New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null 
+  $tmp = Join-Path $InstallDir 'hosts.new.tmp' 
+  [System.IO.File]::WriteAllText($tmp, $text, $Utf8NoBom) 
+  for ($i=1; $i -le 6; $i++) { 
+    try { 
+      if (Test-Path $HostsPath) { [System.IO.File]::Replace($tmp, $HostsPath, $null) } 
+      else { [System.IO.File]::Move($tmp, $HostsPath) } 
+      ipconfig /flushdns | Out-Null 
+      return $true 
+    } catch { 
+      Write-Log ("写 hosts 第 {0}/6 次失败（可能被安全软件锁定）：{1}" -f $i,$_.Exception.Message) 
+      Start-Sleep -Milliseconds 800 
+    } 
+  } 
+  Remove-Item $tmp -Force -ErrorAction SilentlyContinue 
+  Write-Log 'hosts 写入最终失败，已保持原文件不变' 
+  return $false 
+} 
  
 # ===== Worker 分支：计划任务每天以 SYSTEM 调用，绝不能有交互/暂停 ===== 
 function Invoke-Worker { 
   Write-Log '=== worker 开始 ===' 
-  try {   # 可选：脚本自更新 
+  try {   # 可选：脚本自更新（原子写自身） 
     $online = Get-Remote 'gnsc.ps1' 
     if ($online -and $online -match "\`$ScriptVersion\s*=\s*'([^']+)'" -and [version]$Matches[1] -gt [version]$ScriptVersion) { 
-      Set-Content $SelfPath $online -Encoding UTF8; Write-Log ('自更新到 ' + $Matches[1]) 
+      [System.IO.File]::WriteAllText($SelfPath, $online, $Utf8NoBom); Write-Log ('自更新到 ' + $Matches[1]) 
     } 
   } catch {} 
-  # 1) 本地 IPv4 仅作连通性判断（内网地址，不能用于地理定位） 
   $ipv4 = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | 
     Where-Object { $_.IPAddress -notmatch '^(127\.|169\.254\.)' } | 
     Sort-Object SkipAsSource | Select-Object -First 1).IPAddress 
   if (-not $ipv4) { Write-Log '无本地 IPv4，跳过'; return } 
-  # 2) 用【公网出口 IP】判定地区/ISP —— 关键：不要把内网 IP 传给 ipinfo 
+  # 用【公网出口 IP】判定地区/ISP 
   $geo = $null 
   try { $geo = Invoke-RestMethod 'https://ipinfo.io/json' -TimeoutSec 15 } catch { Write-Log ('ipinfo 失败: ' + $_.Exception.Message) } 
   if (-not $geo -or -not $geo.country) { Write-Log '无法获取公网地理信息，跳过本次'; return } 
-  $rc  = if     ($geo.region -match 'Henan')    { 'HN' } 
-       elseif ($geo.region) { ($geo.region -replace '\W','' + 'XX').Substring(0,2).ToUpper() } else { 'XX' } 
+  $rc  = if     ($geo.region -match 'Henan') { 'HN' } 
+       elseif ($geo.region) { (($geo.region -replace '\W','') + 'XX').Substring(0,2).ToUpper() } 
+       else { 'XX' } 
   $isp = if     ($geo.org -match 'UNICOM')  { 'CU' } 
        elseif ($geo.org -match 'TELECOM') { 'CT' } 
        elseif ($geo.org -match 'MOBILE')  { 'CM' } 
        else { 'XX' } 
   $cfgName = "hosts_$($geo.country)_${rc}_${isp}_${Business}.txt" 
   Write-Log ("公网IP={0} region={1} org={2} => {3}" -f $geo.ip,$geo.region,$geo.org,$cfgName) 
-  # 3) 工具函数 
   $raw = Get-Content $HostsPath -Raw -ErrorAction SilentlyContinue 
+  if ($null -eq $raw) { $raw = '' } 
   $hasBlock = $raw -match [regex]::Escape($BeginMark) 
   function Get-Ts { param($t) if ($t -match "$([regex]::Escape($BeginMark))\s*\r?\n# GENERATED_TIME:\s*(.+)") { try { [datetime]::Parse($Matches[1].Trim()) } catch { $null } } else { $null } } 
   function Remove-Block { param($t) [regex]::Replace($t, "(?s)\r?\n?$([regex]::Escape($BeginMark)).*?$([regex]::Escape($EndMark))\r?\n?", '') } 
-  function Write-Hosts { param($t) Set-Content -Path $HostsPath -Value $t -Encoding ASCII; ipconfig /flushdns | Out-Null } 
-  # 4) 多镜像拉取在线配置 
   $onlineText = Get-Remote $cfgName 
   $onlineTs = $null 
   if ($onlineText -and $onlineText -match '# GENERATED_TIME:\s*(.+)') { try { $onlineTs = [datetime]::Parse($Matches[1].Trim()) } catch {} } 
-  # 5) 无对应配置/全部镜像失败：本地超 14 天则清除，避免 IP 失效 
   if (-not $onlineText) { 
     Write-Log ("未取到在线配置 {0}" -f $cfgName) 
     if (-not $hasBlock) { Write-Log '本地无自定义块，结束'; return } 
     $localTs = Get-Ts $raw 
-    if ($localTs -and ((New-TimeSpan $localTs (Get-Date)).TotalDays -gt $MaxAgeDays)) { Write-Hosts (Remove-Block $raw); Write-Log '本地超 14 天，已清除' } 
+    if ($localTs -and ((New-TimeSpan $localTs (Get-Date)).TotalDays -gt $MaxAgeDays)) { Set-HostsContent (Remove-Block $raw); Write-Log '本地超 14 天，已清除' } 
     return 
   } 
-  # 6) 有配置：按时间戳判断是否更新，更新后刷新 DNS 
   $localTs = Get-Ts $raw 
   if ($hasBlock -and $localTs -and $onlineTs -and $onlineTs -le $localTs) { Write-Log '已最新，无需更新'; return } 
+  if (-not $hasBlock) { Backup-Hosts $raw }   # 首次修改前自动备份 
   $tsLine = if ($onlineTs) { $onlineTs.ToString('yyyy-MM-dd HH:mm:ss') } else { (Get-Date).ToString('yyyy-MM-dd HH:mm:ss') } 
   $block  = "$BeginMark`r`n# GENERATED_TIME: $tsLine`r`n$($onlineText.Trim())`r`n$EndMark" 
   $baseTxt= if ($hasBlock) { Remove-Block $raw } else { $raw } 
-  Write-Hosts (($baseTxt.TrimEnd()) + "`r`n" + $block + "`r`n") 
-  Write-Log ("已更新 hosts（{0}）并刷新 DNS" -f $cfgName) 
+  if (Set-HostsContent (($baseTxt.TrimEnd()) + "`r`n" + $block + "`r`n")) { Write-Log ("已更新 hosts（{0}）并刷新 DNS" -f $cfgName) } 
 } 
 if ($Worker) { Invoke-Worker; return } 
  
@@ -112,7 +140,7 @@ function Install-App {
     Write-Host '-> 下载最新脚本（多镜像自动择优）...' 
     $self = Get-Remote 'gnsc.ps1' 
     if (-not $self) { throw '所有镜像均无法下载 gnsc.ps1' } 
-    Set-Content $SelfPath $self -Encoding UTF8 
+    [System.IO.File]::WriteAllText($SelfPath, $self, $Utf8NoBom) 
     Write-Host ('-> 注册计划任务（SYSTEM，每天 {0}）...' -f $RunTime) 
     $psExe   = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe' 
     $argLine = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Worker' -f $SelfPath 
@@ -138,12 +166,12 @@ function Install-App {
 function Uninstall-App { 
   try { 
     Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue 
-    if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force } 
     $raw = Get-Content $HostsPath -Raw -ErrorAction SilentlyContinue 
     if ($raw -match [regex]::Escape($BeginMark)) { 
       $clean = [regex]::Replace($raw, "(?s)\r?\n?$([regex]::Escape($BeginMark)).*?$([regex]::Escape($EndMark))\r?\n?", '') 
-      Set-Content -Path $HostsPath -Value $clean -Encoding ASCII; ipconfig /flushdns | Out-Null 
+      Set-HostsContent $clean 
     } 
+    if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force } 
     Write-Host '[OK] 已卸载并清理 hosts。' -ForegroundColor Green 
   } catch { Write-Host ('[X] 卸载失败：{0}' -f $_.Exception.Message) -ForegroundColor Red } 
 } 
@@ -151,7 +179,7 @@ function Uninstall-App {
 # ===== 主流程 ===== 
 Write-Host ('==== {0}  安装向导  v{1} ====' -f $AppName,$ScriptVersion) -ForegroundColor Cyan 
 if (-not (Test-Installed)) { 
-  Write-Host '状态：未安装。   [回车] 立即安装    [其它键] 退出' 
+  Write-Host '状态：未安装。   [回车] 立即安装   [其它键] 退出' 
   if ((Read-One).VirtualKeyCode -eq 13) { Install-App -RunNow } 
 } 
 else { 
@@ -159,7 +187,7 @@ else {
   $lv = Get-LocalVersion; $ov = Get-OnlineVersion 
   Write-Host ('状态：已安装。本地 {0}  /  在线 {1}' -f $lv,$ov) 
   if (Test-Newer $ov $lv) { Write-Host '  [1] 升级到新版本（覆盖安装）' } 
-  else                { Write-Host '  [1] 重新安装 / 修复（覆盖安装）' } 
+  else                    { Write-Host '  [1] 重新安装 / 修复（覆盖安装）' } 
   Write-Host '  [2] 卸载        [其它键] 退出' 
   switch ((Read-One).Character) { 
     '1' { Install-App -RunNow } 
@@ -167,4 +195,4 @@ else {
     default { } 
   } 
 } 
-Pause-Exit
+Pause-Exit 
