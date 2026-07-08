@@ -4,7 +4,7 @@
 param([switch]$Worker) 
  
 # ===== 全局配置 ===== 
-$ScriptVersion = '1.0.4' 
+$ScriptVersion = '1.0.5' 
 $AppName    = 'GlobalNetSpeedConfigs' 
 # 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快） 
 $Mirrors = @( 
@@ -25,13 +25,31 @@ $EndMark    = "# <<< $Tag END <<<"
 $MaxAgeDays = 14 
 $Business   = 'Amazon' 
 $Utf8NoBom  = New-Object System.Text.UTF8Encoding($false)   # hosts 用无 BOM，避免中文注释乱码 
+# 强制 TLS 1.2/1.3：PS 5.1 默认只启用 TLS1.0，对 Cloudflare/jsDelivr 等会握手失败并表现为"操作超时" 
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 -bor 12288 } catch { [Net.ServicePointManager]::SecurityProtocol = 3072 } 
+[Net.ServicePointManager]::Expect100Continue = $false 
+# 浏览器 UA：gh-proxy 等会对默认的 PowerShell UA 判定为爬虫并返回 429，用真实浏览器 UA 规避 
+$UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' 
+$ProxyUrl = ''   # 如需经代理访问，填 'http://127.0.0.1:7890' 之类；注意 SYSTEM 计划任务不会继承用户的系统代理 
  
 function Write-Log { param($m) try { Add-Content $LogPath ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'),$m) -Encoding UTF8 } catch {} } 
 function Pause-Exit { Write-Host ''; Write-Host '按回车键关闭本窗口...' -ForegroundColor DarkGray; [void][Console]::ReadLine(); exit } 
+# 下载：带浏览器 UA + TLS1.2 + 30s 超时 + 每个镜像重试 2 次；记录 HTTP 状态码，遇 429 稍等再试 
 function Get-Remote { param($rel) 
   foreach ($b in $Mirrors) { 
-    try { return (Invoke-WebRequest -UseBasicParsing "$b/$rel" -TimeoutSec 15).Content } 
-    catch { Write-Log ("镜像失败 {0}/{1} : {2}" -f $b,$rel,$_.Exception.Message) } 
+    $url = "$b/$rel" 
+    for ($try=1; $try -le 2; $try++) { 
+      try { 
+        $p = @{ Uri=$url; UseBasicParsing=$true; UserAgent=$UA; TimeoutSec=30; Headers=@{ 'Cache-Control'='no-cache' } } 
+        if ($ProxyUrl) { $p.Proxy = $ProxyUrl } 
+        $r = Invoke-WebRequest @p 
+        if ($r.StatusCode -eq 200 -and $r.Content) { return $r.Content } 
+      } catch { 
+        $code = 0; try { $code = [int]$_.Exception.Response.StatusCode } catch {} 
+        Write-Log ("镜像失败 {0}（第{1}次 HTTP {2}）: {3}" -f $url,$try,$code,$_.Exception.Message) 
+        if ($code -eq 429) { Start-Sleep -Seconds 3 }   # 被限流则稍等重试 
+      } 
+    } 
   } 
   return $null 
 } 
@@ -87,7 +105,7 @@ function Invoke-Worker {
   if (-not $ipv4) { Write-Log '无本地 IPv4，跳过'; return } 
   # 用【公网出口 IP】判定地区/ISP 
   $geo = $null 
-  try { $geo = Invoke-RestMethod 'https://ipinfo.io/json' -TimeoutSec 15 } catch { Write-Log ('ipinfo 失败: ' + $_.Exception.Message) } 
+  try { $geo = Invoke-RestMethod 'https://ipinfo.io/json' -UserAgent $UA -TimeoutSec 30 } catch { Write-Log ('ipinfo 失败: ' + $_.Exception.Message) } 
   if (-not $geo -or -not $geo.country) { Write-Log '无法获取公网地理信息，跳过本次'; return } 
   $rc  = if     ($geo.region -match 'Henan') { 'HN' } 
        elseif ($geo.region) { (($geo.region -replace '\W','') + 'XX').Substring(0,2).ToUpper() } 
@@ -183,7 +201,7 @@ function Uninstall-App {
 # ===== 主流程 ===== 
 Write-Host ('==== {0}  安装向导  v{1} ====' -f $AppName,$ScriptVersion) -ForegroundColor Cyan 
 if (-not (Test-Installed)) { 
-  Write-Host '状态：未安装。   [回车] 立即安装    [其它键] 退出' 
+  Write-Host '状态：未安装。   [回车] 立即安装   [其它键] 退出' 
   if ((Read-One).VirtualKeyCode -eq 13) { Install-App -RunNow } 
 } 
 else { 
@@ -199,4 +217,4 @@ else {
     default { } 
   } 
 } 
-Pause-Exit
+Pause-Exit 
