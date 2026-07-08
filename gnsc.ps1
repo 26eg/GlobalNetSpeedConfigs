@@ -6,7 +6,7 @@ param([switch]$Worker)
 # ===== 全局配置 ===== 
 $ScriptVersion = '1.0.1' 
 $AppName    = 'GlobalNetSpeedConfigs' 
-$Base       = 'https://gnsc.aioz.cc'          # 你的 Cloudflare 加速域名 
+$Base       = 'https://gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main'          # 你的 Cloudflare 加速域名 
 $SelfUrl    = "$Base/gnsc.ps1" 
 $InstallDir = Join-Path $env:ProgramData $AppName 
 $SelfPath   = Join-Path $InstallDir 'gnsc.ps1' 
