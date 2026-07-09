@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1 
+#Requires -Version 5.1 
 # GlobalNetSpeedConfigs 单文件脚本 gnsc.ps1 
 # 无参数 = 安装/升级/卸载引导；-Worker = 计划任务每日执行 
 param([switch]$Worker) 
