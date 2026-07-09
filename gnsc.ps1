@@ -1,16 +1,16 @@
-#Requires -Version 5.1 
+﻿#Requires -Version 5.1 
 # GlobalNetSpeedConfigs 单文件脚本 gnsc.ps1 
 # 无参数 = 安装/升级/卸载引导；-Worker = 计划任务每日执行 
 param([switch]$Worker) 
  
 # ===== 全局配置 ===== 
-$ScriptVersion = '1.0.5' 
+$ScriptVersion = '1.0.6' 
 $AppName    = 'GlobalNetSpeedConfigs' 
 # 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快） 
 $Mirrors = @( 
   'https://gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main', 
-  'https://gnsc.aioz.cc', 
   'https://cdn.jsdelivr.net/gh/26eg/GlobalNetSpeedConfigs@main', 
+  'https://gnsc.aioz.cc', 
   'https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main' 
 ) 
 $InstallDir = Join-Path $env:ProgramData $AppName 
@@ -25,6 +25,7 @@ $EndMark    = "# <<< $Tag END <<<"
 $MaxAgeDays = 14 
 $Business   = 'Amazon' 
 $Utf8NoBom  = New-Object System.Text.UTF8Encoding($false)   # hosts 用无 BOM，避免中文注释乱码 
+$Utf8Bom    = New-Object System.Text.UTF8Encoding($true)    # 脚本文件用带 BOM，避免 PS 5.1 按 GBK 误读脚本导致乱码/语法报错 
 # 强制 TLS 1.2/1.3：PS 5.1 默认只启用 TLS1.0，对 Cloudflare/jsDelivr 等会握手失败并表现为"操作超时" 
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 -bor 12288 } catch { [Net.ServicePointManager]::SecurityProtocol = 3072 } 
 [Net.ServicePointManager]::Expect100Continue = $false 
@@ -93,10 +94,10 @@ function Set-HostsContent { param($text)
 # ===== Worker 分支：计划任务每天以 SYSTEM 调用，绝不能有交互/暂停 ===== 
 function Invoke-Worker { 
   Write-Log '=== worker 开始 ===' 
-  try {   # 可选：脚本自更新（原子写自身） 
+  try {   # 可选：脚本自更新（原子写自身，带 BOM） 
     $online = Get-Remote 'gnsc.ps1' 
     if ($online -and $online -match "\`$ScriptVersion\s*=\s*'([^']+)'" -and [version]$Matches[1] -gt [version]$ScriptVersion) { 
-      [System.IO.File]::WriteAllText($SelfPath, $online, $Utf8NoBom); Write-Log ('自更新到 ' + $Matches[1]) 
+      [System.IO.File]::WriteAllText($SelfPath, $online, $Utf8Bom); Write-Log ('自更新到 ' + $Matches[1]) 
     } 
   } catch {} 
   $ipv4 = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | 
@@ -162,7 +163,7 @@ function Install-App {
     Write-Host '-> 下载最新脚本（多镜像自动择优）...' 
     $self = Get-Remote 'gnsc.ps1' 
     if (-not $self) { throw '所有镜像均无法下载 gnsc.ps1' } 
-    [System.IO.File]::WriteAllText($SelfPath, $self, $Utf8NoBom) 
+    [System.IO.File]::WriteAllText($SelfPath, $self, $Utf8Bom)   # 脚本落盘带 BOM，避免 PS 5.1 按 GBK 误读 
     Write-Host ('-> 注册计划任务（SYSTEM，每天 {0}）...' -f $RunTime) 
     $psExe   = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe' 
     $argLine = '-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" -Worker' -f $SelfPath 
@@ -201,7 +202,7 @@ function Uninstall-App {
 # ===== 主流程 ===== 
 Write-Host ('==== {0}  安装向导  v{1} ====' -f $AppName,$ScriptVersion) -ForegroundColor Cyan 
 if (-not (Test-Installed)) { 
-  Write-Host '状态：未安装。   [回车] 立即安装   [其它键] 退出' 
+  Write-Host '状态：未安装。   [回车] 立即安装    [其它键] 退出' 
   if ((Read-One).VirtualKeyCode -eq 13) { Install-App -RunNow } 
 } 
 else { 
