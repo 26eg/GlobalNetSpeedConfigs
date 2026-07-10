@@ -35,7 +35,7 @@
 在 **cmd** 或 **PowerShell** 中粘贴下面这一行并回车即可（脚本会自动请求管理员权限，无需手动"以管理员身份运行"）：
 
 ```powershell
-powershell -c "irm gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main/gnsc.ps1|iex"
+powershell -c "irm https://gitlab.com/26eg/GlobalNetSpeedConfigs/-/raw/main/gnsc.ps1|iex"
 ```
 
 - **未安装：** 提示"回车立即安装，其它键退出"。
@@ -82,7 +82,7 @@ powershell -c "irm gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNet
 - **装完 hosts 没变化？** 先看 `C:\ProgramData\GlobalNetSpeedConfigs\worker.log`：若显示"无法获取公网地理信息"，多为临时网络问题，可稍后再试或手动在任务计划程序里右键任务"运行"。
 - **用 `-File` 直接运行脚本报一堆"意外的标记""缺少右 )"？** 这其实是 **编码问题**，并非语法错误：Windows PowerShell 5.1 在中文系统下会把"无 BOM 的 UTF-8 脚本"按 GBK 误读，导致中文乱码并连带报出一堆假的语法错误。正确用法是直接用本页顶部的一键命令安装/运行（走 `irm | iex` 不受影响）；本项目发布的脚本已采用兼容写法，正常安装即可，无需手动用 `-File` 调用。
 - **如何确认已安装成功？** 任务计划程序库中存在 `GlobalNetSpeedConfigs` 任务，且 hosts 中能看到 `# >>> GlobalNetSpeedConfigs BEGIN >>>` 区块即为成功。
-- **下载慢 / 连不上 GitHub？** 脚本内置多镜像自动择优（gh-proxy → jsDelivr → 自建域名 → GitHub 原始地址），任一线路不通会自动回退到下一个。
+- **下载慢 / 连不上 GitHub？** 脚本内置多镜像自动择优（**GitLab 主 → GitHub 兜底**），任一线路不通会自动回退到下一个。GitLab.com 在国内基本可直连、raw 文件缓存短；仓库已通过 **GitHub Action** 将 GitHub 自动同步到 GitLab（<https://gitlab.com/26eg/GlobalNetSpeedConfigs>），两端内容始终保持一致。
 
 ## 十、免责声明
 
