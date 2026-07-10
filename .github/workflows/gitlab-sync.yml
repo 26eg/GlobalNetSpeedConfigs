@@ -1,0 +1,28 @@
+name: Sync to GitLab
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.GITLAB_SYNC }}
+
+      - name: Add GitLab remote
+        run: |
+          git remote add gitlab ${{ secrets.GITLAB_REPO }}
+
+      - name: Push to GitLab
+        run: |
+          git push gitlab --all
+          git push gitlab --tags
