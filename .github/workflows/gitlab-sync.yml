@@ -29,5 +29,5 @@ jobs:
 
       - name: Push to GitLab
         run: |
-          git push gitlab --all --force
-          git push gitlab --tags --force
+          git push gitlab --all
+          git push gitlab --tags
