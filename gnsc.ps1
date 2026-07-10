@@ -1,16 +1,15 @@
 #Requires -Version 5.1 
+
 # GlobalNetSpeedConfigs 单文件脚本 gnsc.ps1 
 # 无参数 = 安装/升级/卸载引导；-Worker = 计划任务每日执行 
 param([switch]$Worker) 
  
 # ===== 全局配置 ===== 
-$ScriptVersion = '1.0.6' 
+$ScriptVersion = '1.0.7' 
 $AppName    = 'GlobalNetSpeedConfigs' 
-# 多镜像，按顺序尝试，第一个成功即用（gh-proxy 通常最快） 
+# 多镜像，按顺序尝试，第一个成功即用（GitLab 国内可直连、缓存短，优先；GitHub 兜底） 
 $Mirrors = @( 
-  'https://gh-proxy.com/https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main', 
-  'https://cdn.jsdelivr.net/gh/26eg/GlobalNetSpeedConfigs@main', 
-  'https://gnsc.aioz.cc', 
+  'https://gitlab.com/26eg/GlobalNetSpeedConfigs/-/raw/main', 
   'https://raw.githubusercontent.com/26eg/GlobalNetSpeedConfigs/main' 
 ) 
 $InstallDir = Join-Path $env:ProgramData $AppName 
@@ -26,10 +25,10 @@ $MaxAgeDays = 14
 $Business   = 'Amazon' 
 $Utf8NoBom  = New-Object System.Text.UTF8Encoding($false)   # hosts 用无 BOM，避免中文注释乱码 
 $Utf8Bom    = New-Object System.Text.UTF8Encoding($true)    # 脚本文件用带 BOM，避免 PS 5.1 按 GBK 误读脚本导致乱码/语法报错 
-# 强制 TLS 1.2/1.3：PS 5.1 默认只启用 TLS1.0，对 Cloudflare/jsDelivr 等会握手失败并表现为"操作超时" 
+# 强制 TLS 1.2/1.3：PS 5.1 默认只启用 TLS1.0，对 GitLab/GitHub 等会握手失败并表现为"操作超时" 
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 -bor 12288 } catch { [Net.ServicePointManager]::SecurityProtocol = 3072 } 
 [Net.ServicePointManager]::Expect100Continue = $false 
-# 浏览器 UA：gh-proxy 等会对默认的 PowerShell UA 判定为爬虫并返回 429，用真实浏览器 UA 规避 
+# 浏览器 UA：部分公共镜像/代理会对默认的 PowerShell UA 判定为爬虫并返回 429，用真实浏览器 UA 规避 
 $UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' 
 $ProxyUrl = ''   # 如需经代理访问，填 'http://127.0.0.1:7890' 之类；注意 SYSTEM 计划任务不会继承用户的系统代理 
  
