@@ -10,8 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (full history)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.7.0
