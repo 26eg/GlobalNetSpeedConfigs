@@ -5,7 +5,7 @@
 param([switch]$Worker)
 
 # ===== 全局配置 =====
-$ScriptVersion = '1.0.8'
+$ScriptVersion = '1.0.9'
 $AppName    = 'GlobalNetSpeedConfigs'
 # 多镜像，按顺序尝试，第一个成功即用（GitLab 国内可直连、缓存短，优先；GitHub 兜底）
 $Mirrors = @(
@@ -150,11 +150,13 @@ function Get-StunIP {
   Write-Log 'STUN 全部服务器探测失败'
   return $null
 }
-# 运营商归一化：中英文关键词皆识别
+# 运营商归一化：中英文关键词 + 骨干网别名 + AS 号皆识别
+# （ip-api 对联通网段常返回 "CNC Group CHINA169 ..."，不含 UNICOM 字样，须靠 CNC/CHINA169/AS4837 命中）
 function Get-IspCode { param($s)
-  if     ($s -match '联通|UNICOM')           { return 'CU' }
-  elseif ($s -match '电信|TELECOM|CHINANET') { return 'CT' }
-  elseif ($s -match '移动|铁通|MOBILE|CMCC') { return 'CM' }
+  if     ($s -match '联通|UNICOM|CNC|NETCOM|CHINA169|AS4837|AS9929|AS10099')     { return 'CU' }
+  elseif ($s -match '电信|TELECOM|CHINANET|AS4134|AS4809|AS23724')               { return 'CT' }
+  elseif ($s -match '移动|铁通|MOBILE|CMCC|CMNET|TIETONG|AS9808|AS58453|AS56040'){ return 'CM' }
+  if ($s.Trim()) { Write-Log ("未识别的 ISP 描述：{0}" -f $s.Trim()) }   # 留痕便于日后补充关键词
   return 'XX'
 }
 # 国内接口（中文结果）-> 归一化 geo 对象；regionEn 与 ipinfo 命名对齐，保证地区码一致
@@ -169,11 +171,10 @@ function ConvertFrom-IpInfo { param($j,$src)
   [pscustomobject]@{ ip=$j.ip; isCN=($j.country -eq 'CN'); country=$j.country; regionEn="$($j.region)"; ispCode=(Get-IspCode "$($j.org)"); src=$src }
 }
 # 指定 IP 反查归属地（用于 STUN 拿到的真实出口 IP）：反查结果与请求走什么路由无关
+# （百度 qifu 接口已对匿名调用返回 403，弃用；ip-api 的 isp+org+as 拼起来喂给归一化，AS 号是最可靠的兜底）
 function Get-GeoForIP { param($ip)
-  $j = Get-Json ("https://qifu-api.baidubce.com/ip/geo/v1/district?ip={0}" -f $ip)
-  if ($j -and $j.code -eq 'Success' -and $j.data) { return ConvertFrom-CnGeo $ip $j.data.country $j.data.prov $j.data.isp 'STUN+百度' }
-  $j = Get-Json ("http://ip-api.com/json/{0}?lang=zh-CN&fields=status,country,regionName,isp" -f $ip)
-  if ($j -and $j.status -eq 'success') { return ConvertFrom-CnGeo $ip $j.country $j.regionName $j.isp 'STUN+ip-api' }
+  $j = Get-Json ("http://ip-api.com/json/{0}?lang=zh-CN&fields=status,country,regionName,isp,org,as" -f $ip)
+  if ($j -and $j.status -eq 'success') { return ConvertFrom-CnGeo $ip $j.country $j.regionName "$($j.isp) $($j.org) $($j.as)" 'STUN+ip-api' }
   $j = Get-Json ("https://ipinfo.io/{0}/json" -f $ip) 20
   if ($j -and $j.country) { return ConvertFrom-IpInfo $j 'STUN+ipinfo' }
   return $null
@@ -192,8 +193,6 @@ function Get-ExitGeo {
   }
   $j = Get-Json 'https://api.bilibili.com/x/web-interface/zone'
   if ($j -and $j.data -and $j.data.addr) { return ConvertFrom-CnGeo $j.data.addr $j.data.country $j.data.province $j.data.isp 'bilibili' }
-  $j = Get-Json 'https://qifu-api.baidubce.com/ip/local/geo/v1/district'
-  if ($j -and $j.code -eq 'Success' -and $j.data) { return ConvertFrom-CnGeo $j.ip $j.data.country $j.data.prov $j.data.isp '百度' }
   $t = Get-Http 'https://myip.ipip.net'
   if ($t -and $t -match '当前 IP：\s*(\d{1,3}(?:\.\d{1,3}){3})\s*来自于：\s*(.+)') {
     $ipipIp = $Matches[1]; $parts = @($Matches[2].Trim() -split '\s+')
