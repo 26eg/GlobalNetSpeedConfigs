@@ -1,20 +1,20 @@
-# GENERATED_TIME: 2026-07-21 03:04:13
+# GENERATED_TIME: 2026-07-22 03:04:20
 # 飞牛NAS自动化测速生成 (河南联通)
 
 20.27.177.113 github.com
-185.199.110.153 github.io
-185.199.108.133 raw.githubusercontent.com
+185.199.109.153 github.io
+185.199.109.133 raw.githubusercontent.com
 20.27.177.116 api.github.com
 99.84.142.174 advertising.amazon.com
 3.173.197.61 sellercentral-europe.amazon.com
 3.173.197.61 sellercentral-japan.amazon.com
 18.64.122.13 vendorcentral.amazon.com
-114.108.166.41 m.media-amazon.com
-3.164.113.189 images-na.ssl-images-amazon.com
-151.101.89.16 images-eu.ssl-images-amazon.com
-114.108.166.41 images-fe.ssl-images-amazon.com
+151.101.89.16 m.media-amazon.com
+3.173.246.206 images-na.ssl-images-amazon.com
+54.239.158.149 images-eu.ssl-images-amazon.com
+151.101.89.16 images-fe.ssl-images-amazon.com
 3.173.210.29 images-cn.ssl-images-amazon.com
-3.173.246.151 www.amazon.com
+3.173.194.175 www.amazon.com
 3.173.197.61 sellercentral.amazon.com
 54.239.162.27 www.amazon.ca
 3.173.197.61 sellercentral.amazon.ca
@@ -25,9 +25,9 @@
 3.173.234.226 www.amazon.co.uk
 3.173.254.76 sellercentral.amazon.co.uk
 3.175.230.200 www.amazon.de
-3.173.254.76 sellercentral.amazon.de
+3.173.197.61 sellercentral.amazon.de
 18.65.186.119 www.amazon.fr
-3.173.197.61 sellercentral.amazon.fr
+3.173.254.76 sellercentral.amazon.fr
 3.166.234.188 www.amazon.it
 3.173.197.61 sellercentral.amazon.it
 3.173.215.220 www.amazon.es
@@ -35,22 +35,22 @@
 3.165.39.4 www.amazon.nl
 3.173.197.61 sellercentral.amazon.nl
 3.173.219.48 www.amazon.pl
-3.173.254.76 sellercentral.amazon.pl
-61.111.58.209 www.amazon.se
+3.173.197.61 sellercentral.amazon.pl
+3.175.227.78 www.amazon.se
 3.173.197.61 sellercentral.amazon.se
-122.10.85.4 www.amazon.co.jp
+13.33.213.228 www.amazon.co.jp
 3.173.197.61 sellercentral.amazon.co.jp
 3.168.251.178 www.amazon.com.au
 3.173.254.76 sellercentral.amazon.com.au
 18.172.31.56 www.amazon.sg
-3.173.197.61 sellercentral.amazon.sg
-13.225.164.171 www.amazon.in
+3.173.254.76 sellercentral.amazon.sg
+3.164.133.225 www.amazon.in
 3.173.254.76 sellercentral.amazon.in
 3.173.219.39 www.amazon.ae
 3.173.197.61 sellercentral.amazon.ae
-61.111.58.164 www.amazon.sa
+3.166.244.52 www.amazon.sa
 3.173.197.61 sellercentral.amazon.sa
-18.65.207.4 www.amazon.eg
-3.173.238.125 sellercentral.amazon.eg
-61.111.58.208 www.amazon.com.tr
-3.173.254.76 sellercentral.amazon.com.tr
+18.65.185.104 www.amazon.eg
+3.173.254.76 sellercentral.amazon.eg
+18.65.214.99 www.amazon.com.tr
+3.173.197.61 sellercentral.amazon.com.tr
