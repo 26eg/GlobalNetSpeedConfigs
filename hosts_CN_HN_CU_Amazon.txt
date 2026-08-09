@@ -1,27 +1,27 @@
-# GENERATED_TIME: 2026-08-09 03:04:11
+# GENERATED_TIME: 2026-08-10 03:04:16
 # 飞牛NAS自动化测速生成 (河南联通)
 
 20.27.177.113 github.com
-185.199.111.153 github.io
+185.199.109.153 github.io
 185.199.111.133 raw.githubusercontent.com
 20.27.177.116 api.github.com
 99.84.142.174 advertising.amazon.com
 3.173.238.86 sellercentral-europe.amazon.com
 3.173.238.86 sellercentral-japan.amazon.com
-3.164.143.92 vendorcentral.amazon.com
-157.197.97.41 m.media-amazon.com
+18.64.122.124 vendorcentral.amazon.com
+146.75.49.16 m.media-amazon.com
 146.75.49.16 images-na.ssl-images-amazon.com
-3.173.226.47 images-eu.ssl-images-amazon.com
-13.225.179.204 images-fe.ssl-images-amazon.com
+18.64.132.136 images-eu.ssl-images-amazon.com
+13.32.55.69 images-fe.ssl-images-amazon.com
 3.173.210.29 images-cn.ssl-images-amazon.com
-3.166.241.194 www.amazon.com
+3.173.246.151 www.amazon.com
 3.173.238.86 sellercentral.amazon.com
 54.239.162.27 www.amazon.ca
 3.173.238.86 sellercentral.amazon.ca
 3.173.217.153 www.amazon.com.mx
 3.173.238.86 sellercentral.amazon.com.mx
 3.173.206.70 www.amazon.com.br
-3.173.254.31 sellercentral.amazon.com.br
+3.173.238.86 sellercentral.amazon.com.br
 3.173.234.226 www.amazon.co.uk
 3.173.238.86 sellercentral.amazon.co.uk
 3.175.230.200 www.amazon.de
@@ -36,9 +36,9 @@
 3.173.238.86 sellercentral.amazon.nl
 3.173.217.119 www.amazon.pl
 3.173.238.86 sellercentral.amazon.pl
-3.175.222.57 www.amazon.se
+61.111.58.182 www.amazon.se
 3.173.238.86 sellercentral.amazon.se
-54.239.164.112 www.amazon.co.jp
+99.86.221.237 www.amazon.co.jp
 3.173.197.129 sellercentral.amazon.co.jp
 3.168.251.178 www.amazon.com.au
 3.173.238.86 sellercentral.amazon.com.au
@@ -48,9 +48,9 @@
 3.173.238.86 sellercentral.amazon.in
 3.173.215.33 www.amazon.ae
 3.173.238.86 sellercentral.amazon.ae
-3.166.244.62 www.amazon.sa
+54.239.163.76 www.amazon.sa
 3.173.238.86 sellercentral.amazon.sa
-18.65.187.31 www.amazon.eg
+18.65.208.41 www.amazon.eg
 3.173.238.86 sellercentral.amazon.eg
 18.65.213.175 www.amazon.com.tr
 3.173.238.86 sellercentral.amazon.com.tr
